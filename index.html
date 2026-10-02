@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tetris Shift</title>
+  <link rel="stylesheet" href="css/style.css">
+
+</head>
+
+<body>
+<div class="game-container">
+
+  <header class="game-header">
+    <h1>TETRIS GAME</h1>
+  </header>
+
+  <main class="game-main">
+  <aside class="left-panel">
+    <div class="panel">
+      <h2>CHỌN LEVEL</h2>
+      <div class="level-list">
+        <button class="level active">1</button>
+        <button class="level ">2</button>
+        <button class="level ">3</button>
+        <button class="level ">4</button>
+        <button class="level ">5</button>
+        <button class="level ">6</button>
+      </div>
+    </div>
+    <div class="panel level-info">
+      <span class="level-label">LEVEL 1</span>
+
+      <h3>CƠ BẢN</h3>
+      <p>Làm quen với cách di chuyển,
+      xoay và xoá các dòng trong Tetris</p>
+    </div>
+  </aside>
+
+  <section class="game-section">
+    <div class="game-stats">
+      <div class="stat">
+      <span>SCORE</span>
+      <strong>000000</strong>
+    </div>
+      <div class="stat">
+        <span>LEVEL</span>
+        <strong>1</strong>
+      </div>
+      <div class="stat">
+        <span>LINES</span>
+        <strong>000000</strong>
+      </div>
+    </div>
+    <div class="game-board">
+      <div class="board-placeholder">
+        TETRIS
+      </div>
+    </div>
+    <div class="game-buttons">
+      <button class="btn btn-start">
+        BẮT ĐẦU
+      </button>
+      <button class="btn btn-pause">
+        DỪNG LẠI
+      </button>
+      <button class="btn btn-restart">
+        CHƠI LẠI
+      </button>
+    </div>
+  </section>
+  <aside class="right-panel">
+    <div class="panel next-panel">
+      <h2>NEXT BLOCK</h2>
+      <div class="next-block">
+        <div class="mini-block">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+    </div>
+    <div class="panel goal-panel">
+      <h2>MỤC TIÊU</h2>
+      <div class="goal-content">
+        <strong>XOÁ 10 DÒNG</strong>
+        <p> Hoàn thành mục tiêu để chiến thắng</p>
+      </div>
+    </div>
+    <div class="panel-control-row">
+      <h2>CÁCH CHƠI</h2>
+      <div class="control-row">
+        <span>← →</span>
+        <p>Di chuyển</p>
+      </div>
+      <div class="control-row">
+        <span>↑</span>
+        <p>Xoay khối</p>
+      </div>
+      <div class="control-row">
+        <span>↓</span>
+        <p>Rơi nhanh</p>
+      </div>
+      <div class="control-row">
+        <span>SPACE</span>
+        <p>Rơi xuống</p>
+      </div>
+    </div>
+  </aside>
+</main>
+</div>
+</body>
+</html>
