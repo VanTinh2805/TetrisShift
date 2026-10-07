@@ -1,0 +1,145 @@
+var ROWS = 20;
+var COLS = 10;
+
+var board = document.querySelector(".game-board");
+var cells = [];
+
+
+for (var i = 0; i < ROWS; i++) {
+  for (var j = 0; j < COLS; j++) {
+    var cell = document.createElement("div");
+    cell.classList.add("cell");
+    cell.id = "cell-" + i + "-" + j;
+    board.appendChild(cell);
+    cells.push(cell);
+  }
+}
+
+
+var currentPiece = [
+  [1, 1, 1, 1]
+];
+
+var pieceRow = 0;
+var pieceCol = 3;
+var gameInterval = null;
+var isPlaying = false;
+
+
+function clearBoard() {
+  for (var i = 0; i < cells.length; i++) {
+    cells[i].style.background = "#111827";
+  }
+}
+
+
+function drawPiece() {
+  for (var r = 0; r < currentPiece.length; r++) {
+    for (var c = 0; c < currentPiece[r].length; c++) {
+      if (currentPiece[r][c] === 1) {
+        var index = (pieceRow + r) * COLS + (pieceCol + c);
+        if (index >= 0 && index < cells.length) {
+          cells[index].style.background = "#38bdf8";
+        }
+      }
+    }
+  }
+}
+
+
+function canMove(newRow, newCol) {
+  for (var r = 0; r < currentPiece.length; r++) {
+    for (var c = 0; c < currentPiece[r].length; c++) {
+      if (currentPiece[r][c] === 1) {
+        var nextRow = newRow + r;
+        var nextCol = newCol + c;
+
+        if (nextCol < 0 || nextCol >= COLS || nextRow >= ROWS) {
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
+
+function moveDown() {
+  if (canMove(pieceRow + 1, pieceCol)) {
+    pieceRow++;
+    clearBoard();
+    drawPiece();
+  } else {
+
+    console.log("Chạm đáy");
+  }
+}
+
+
+function moveLeft() {
+  if (canMove(pieceRow, pieceCol - 1)) {
+    pieceCol--;
+    clearBoard();
+    drawPiece();
+  }
+}
+
+
+function moveRight() {
+  if (canMove(pieceRow, pieceCol + 1)) {
+    pieceCol++;
+    clearBoard();
+    drawPiece();
+  }
+}
+
+
+function startGame() {
+  if (isPlaying) return;
+
+  isPlaying = true;
+  pieceRow = 0;
+  pieceCol = 3;
+
+  clearBoard();
+  drawPiece();
+
+  gameInterval = setInterval(moveDown, 500);
+}
+
+
+function pauseGame() {
+  if (!isPlaying) return;
+  clearInterval(gameInterval);
+  isPlaying = false;
+}
+
+
+function restartGame() {
+  clearInterval(gameInterval);
+  isPlaying = false;
+  pieceRow = 0;
+  pieceCol = 3;
+  clearBoard();
+  drawPiece();
+}
+
+
+document.querySelector(".btn-start").onclick = startGame;
+document.querySelector(".btn-pause").onclick = pauseGame;
+document.querySelector(".btn-restart").onclick = restartGame;
+
+
+document.onkeydown = function (e) {
+  if (!isPlaying) return;
+
+  if (e.key === "ArrowLeft") {
+    moveLeft();
+  } else if (e.key === "ArrowRight") {
+    moveRight();
+  } else if (e.key === "ArrowDown") {
+    moveDown();
+  }
+};
+
+drawPiece();

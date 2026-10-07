@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Tetris Shift</title>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/game.css">
 
 </head>
 
@@ -17,7 +18,7 @@
   <main class="game-main">
   <aside class="left-panel">
     <div class="panel">
-      <h2>CHỌN LEVEL</h2>
+      <h2>CHỌN MỨC ĐỘ</h2>
       <div class="level-list">
         <button class="level active">1</button>
         <button class="level ">2</button>
@@ -28,7 +29,7 @@
       </div>
     </div>
     <div class="panel level-info">
-      <span class="level-label">LEVEL 1</span>
+      <span class="level-label">MỨC ĐỘ 1</span>
 
       <h3>CƠ BẢN</h3>
       <p>Làm quen với cách di chuyển,
@@ -39,23 +40,19 @@
   <section class="game-section">
     <div class="game-stats">
       <div class="stat">
-      <span>SCORE</span>
+      <span>ĐIỂM</span>
       <strong>000000</strong>
     </div>
       <div class="stat">
-        <span>LEVEL</span>
+        <span>MỨC ĐỘ</span>
         <strong>1</strong>
       </div>
       <div class="stat">
-        <span>LINES</span>
+        <span>SỐ DÒNG</span>
         <strong>000000</strong>
       </div>
     </div>
-    <div class="game-board">
-      <div class="board-placeholder">
-        TETRIS
-      </div>
-    </div>
+    <div class="game-board"></div>
     <div class="game-buttons">
       <button class="btn btn-start">
         BẮT ĐẦU
@@ -70,7 +67,7 @@
   </section>
   <aside class="right-panel">
     <div class="panel next-panel">
-      <h2>NEXT BLOCK</h2>
+      <h2>KHỐI TIẾP THEO</h2>
       <div class="next-block">
         <div class="mini-block">
           <span></span>
@@ -108,6 +105,8 @@
     </div>
   </aside>
 </main>
+
 </div>
+<script src="js/game.js"></script>
 </body>
 </html>
