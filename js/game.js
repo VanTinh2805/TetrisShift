@@ -19,7 +19,7 @@ for (var i = 0; i < ROWS; i++) {
 
 var gameInterval = null;
 var isPlaying = false;
-
+var nextPiece = null;
 var pieces = [
   // I
   [[1, 1, 1, 1]
@@ -161,13 +161,61 @@ function lockPiece() {
   }
 }
 
+function clearLines(){
+  for (var i = ROWS - 1; i >= 0; i--){
+    var full = true;
+
+    for (var j = 0; j < COLS; j++){
+      if (fixedBoard[i][j] ===0){
+        full = false;
+        break;
+      }
+    }
+    if (full){
+      fixedBoard.splice(i,1);
+      var newRow = [];
+      for (var j = 0; j < COLS; j++) {
+        newRow.push(0);
+      }
+      fixedBoard.unshift(newRow);
+      i++;
+    }
+  }
+}
+
 function newPiece() {
-
+  if (nextPiece === null) {
+    var random = Math.floor(Math.random() * pieces.length);
+    nextPiece = pieces[random];
+  }
+  currentPiece = nextPiece;
   var random = Math.floor(Math.random() * pieces.length);
-  currentPiece = pieces[random];
-
+  nextPiece = pieces[random];
   pieceRow = 0;
   pieceCol = Math.floor((COLS - currentPiece[0].length) / 2);
+  drawNextPiece();
+}
+function drawNextPiece() {
+  var miniBlock = document.querySelector(".mini-block");
+  miniBlock.innerHTML = "";
+
+  var rows = nextPiece.length;
+  var cols = nextPiece[0].length;
+
+  miniBlock.style.gridTemplateColumns = "repeat(" + cols + ", 25px)";
+  miniBlock.style.gridTemplateRows = "repeat(" + rows + ", 25px)";
+  for (var r = 0; r < rows; r++) {
+    for (var c = 0; c < cols; c++) {
+      var span = document.createElement("span");
+
+      if (nextPiece[r][c] === 1) {
+        span.style.background = "#4a90e2";
+      } else {
+        span.style.background = "transparent";
+      }
+      miniBlock.appendChild(span);
+    }
+  }
 }
 
 function moveDown() {
@@ -179,6 +227,7 @@ function moveDown() {
   } else {
 
     lockPiece();
+    clearLines();
     newPiece();
     clearBoard();
     drawFixed();
@@ -196,7 +245,6 @@ function moveLeft() {
   }
 }
 
-
 function moveRight() {
   if (canMove(pieceRow, pieceCol + 1)) {
     pieceCol++;
@@ -209,8 +257,8 @@ function moveRight() {
 function startGame() {
   if (isPlaying) return;
   isPlaying = true;
-  pieceRow = 0;
-  pieceCol = 3;
+  nextPiece = null;
+  newPiece();
   clearBoard();
   drawFixed();
   drawPiece();
@@ -228,14 +276,13 @@ function pauseGame() {
 function restartGame() {
   clearInterval(gameInterval);
   isPlaying = false;
-
-
+  nextPiece = null;
+  document.querySelector(".mini-block").innerHTML = "";
   for (var i = 0; i < ROWS; i++) {
     for (var j = 0; j < COLS; j++) {
       fixedBoard[i][j] = 0;
     }
   }
-
   pieceRow = 0;
   pieceCol = 3;
   clearBoard();
