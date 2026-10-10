@@ -16,14 +16,56 @@ for (var i = 0; i < ROWS; i++) {
 }
 
 
-var currentPiece = [
-  [1, 1, 1, 1]
-];
 
-var pieceRow = 0;
-var pieceCol = 3;
 var gameInterval = null;
 var isPlaying = false;
+
+var pieces = [
+  // I
+  [[1, 1, 1, 1]
+  ],
+
+  [ [1],
+    [1],
+    [1],
+    [1]
+  ],
+  // O
+  [
+    [1, 1],
+    [1, 1]
+  ],
+  // T
+  [
+    [0, 1, 0],
+    [1, 1, 1]
+  ],
+  // L
+  [
+    [1, 0],
+    [1, 0],
+    [1, 1]
+  ],
+
+  [
+    [0, 1],
+    [0, 1],
+    [1, 1]
+  ],
+  // Z
+  [
+    [0, 1, 1],
+    [1, 1, 0]
+  ],
+
+  [
+    [1, 1, 0],
+    [0, 1, 1]
+  ]
+];
+var currentPiece = pieces[0];
+var pieceRow = 0;
+var pieceCol = 3;
 
 var fixedBoard = [];
 for(var i = 0; i<ROWS;i++){
@@ -82,6 +124,29 @@ function canMove(newRow, newCol) {
   return true;
 }
 
+function rotatePiece(){
+  var newPiece = [];
+  var rows = currentPiece.length;
+  var cols = currentPiece[0].length;
+  for(var c = 0; c < cols; c++){
+    newPiece[c] = [];
+    for (var r = rows - 1; r >= 0; r--) {
+      newPiece[c].push(currentPiece[r][c]);
+    }
+  }
+  var oldPiece = currentPiece;
+  currentPiece = newPiece;
+
+  if (!canMove(pieceRow, pieceCol)) {
+    currentPiece = oldPiece;
+  } else {
+
+    clearBoard();
+    drawFixed();
+    drawPiece();
+  }
+}
+
 function lockPiece() {
   for (var r = 0; r < currentPiece.length; r++) {
     for (var c = 0; c < currentPiece[r].length; c++) {
@@ -97,11 +162,12 @@ function lockPiece() {
 }
 
 function newPiece() {
-  currentPiece = [
-    [1, 1, 1, 1]
-  ];
+
+  var random = Math.floor(Math.random() * pieces.length);
+  currentPiece = pieces[random];
+
   pieceRow = 0;
-  pieceCol = 3;
+  pieceCol = Math.floor((COLS - currentPiece[0].length) / 2);
 }
 
 function moveDown() {
@@ -191,6 +257,8 @@ document.onkeydown = function (e) {
     moveRight();
   } else if (e.key === "ArrowDown") {
     moveDown();
+  } else if (e.key === "ArrowUp") {
+    rotatePiece();
   }
 };
 
