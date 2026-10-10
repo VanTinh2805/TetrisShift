@@ -25,13 +25,29 @@ var pieceCol = 3;
 var gameInterval = null;
 var isPlaying = false;
 
+var fixedBoard = [];
+for(var i = 0; i<ROWS;i++){
+  fixedBoard[i]=[];
+  for (var j = 0;j < COLS;j++){
+    fixedBoard[i][j] = 0;
+  }
+}
 
 function clearBoard() {
   for (var i = 0; i < cells.length; i++) {
     cells[i].style.background = "#111827";
   }
 }
-
+function drawFixed(){
+  for (var i = 0; i < ROWS; i++){
+    for (var j = 0; j < COLS; j++ ){
+      if (fixedBoard[i][j] === 1){
+        var index = i*COLS+j;
+        cells[index].style.background = "#38bdf8";
+      }
+    }
+  }
+}
 
 function drawPiece() {
   for (var r = 0; r < currentPiece.length; r++) {
@@ -57,21 +73,50 @@ function canMove(newRow, newCol) {
         if (nextCol < 0 || nextCol >= COLS || nextRow >= ROWS) {
           return false;
         }
+        if (nextRow >= 0 && fixedBoard[nextRow][nextCol] === 1){
+          return false;
+        }
       }
     }
   }
   return true;
 }
 
+function lockPiece() {
+  for (var r = 0; r < currentPiece.length; r++) {
+    for (var c = 0; c < currentPiece[r].length; c++) {
+      if (currentPiece[r][c] === 1) {
+        var row = pieceRow + r;
+        var col = pieceCol + c;
+        if (row >= 0 && row < ROWS && col >= 0 && col < COLS) {
+          fixedBoard[row][col] = 1;
+        }
+      }
+    }
+  }
+}
+
+function newPiece() {
+  currentPiece = [
+    [1, 1, 1, 1]
+  ];
+  pieceRow = 0;
+  pieceCol = 3;
+}
 
 function moveDown() {
   if (canMove(pieceRow + 1, pieceCol)) {
     pieceRow++;
     clearBoard();
+    drawFixed();
     drawPiece();
   } else {
 
-    console.log("Chạm đáy");
+    lockPiece();
+    newPiece();
+    clearBoard();
+    drawFixed();
+    drawPiece();
   }
 }
 
@@ -80,6 +125,7 @@ function moveLeft() {
   if (canMove(pieceRow, pieceCol - 1)) {
     pieceCol--;
     clearBoard();
+    drawFixed();
     drawPiece();
   }
 }
@@ -89,21 +135,19 @@ function moveRight() {
   if (canMove(pieceRow, pieceCol + 1)) {
     pieceCol++;
     clearBoard();
+    drawFixed();
     drawPiece();
   }
 }
 
-
 function startGame() {
   if (isPlaying) return;
-
   isPlaying = true;
   pieceRow = 0;
   pieceCol = 3;
-
   clearBoard();
+  drawFixed();
   drawPiece();
-
   gameInterval = setInterval(moveDown, 500);
 }
 
@@ -118,6 +162,14 @@ function pauseGame() {
 function restartGame() {
   clearInterval(gameInterval);
   isPlaying = false;
+
+
+  for (var i = 0; i < ROWS; i++) {
+    for (var j = 0; j < COLS; j++) {
+      fixedBoard[i][j] = 0;
+    }
+  }
+
   pieceRow = 0;
   pieceCol = 3;
   clearBoard();
@@ -142,4 +194,6 @@ document.onkeydown = function (e) {
   }
 };
 
+clearBoard();
+drawFixed();
 drawPiece();
