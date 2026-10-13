@@ -146,19 +146,19 @@ body {
 }
 
 .btn-start {
-  background: #4caf50;
+  background: green;
   color: white;
-  border-color: #4caf50;
+  border-color:green;
 }
 
 .btn-pause {
-  background: #ff9800;
+  background: orange;
   color: white;
-  border-color: #ff9800;
+  border-color: orange;
 }
 
 .btn-restart {
-  background: #f44336;
+  background: red;
   color: white;
   border-color: #f44336;
 }
@@ -174,7 +174,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fafafa;
+  background: white;
 }
 
 .mini-block {
@@ -197,7 +197,7 @@ body {
   display: block;
   font-size: 16px;
   margin-bottom: 8px;
-  color: #4caf50;
+  color: green;
 }
 
 .goal-content p {
@@ -238,4 +238,20 @@ body {
 .control-row p {
   font-size: 13px;
   color: #555;
+}
+
+.game-board {
+  display: grid;
+  grid-template-columns: repeat(10, 28px);
+  grid-template-rows: repeat(20, 28px);
+  border: 2px solid #333;
+  background: #fff;
+}
+
+.cell {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #1f2937;
+  box-sizing: border-box;
+  background: #111827;
 }
