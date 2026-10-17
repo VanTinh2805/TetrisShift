@@ -22,6 +22,7 @@ var isPlaying = false;
 var nextPiece = null;
 var score = 0;
 var lines = 0;
+var currentLevel = 1;
 var pieces = [
   // I
   [[1, 1, 1, 1]
@@ -96,6 +97,18 @@ for (var i = 0; i < ROWS; i++) {
 function randomPiece() {
   return Math.floor(Math.random() * pieces.length);
 }
+
+function createLevel2Obstacles() {
+  var row = ROWS - 1;
+
+  for (var j = 0; j < COLS; j++) {
+    if (j !== 4 && j !== 5) {
+      fixedBoard[row][j] = 1;
+      fixedColors[row][j] = "#808080";
+    }
+  }
+}
+
 function clearBoard() {
   for (var i = 0; i < cells.length; i++) {
     cells[i].style.background = "#111827";
@@ -428,9 +441,15 @@ function restartGame() {
   pieceRow = 0;
   pieceCol = Math.floor((COLS - currentPiece[0].length) / 2);
 
+
+  if (currentLevel === 2) {
+    createLevel2Obstacles();
+  }
+
   clearBoard();
   drawFixed();
   drawPiece();
+
 }
 
 
@@ -438,6 +457,72 @@ function restartGame() {
 document.querySelector(".btn-start").onclick = startGame;
 document.querySelector(".btn-pause").onclick = pauseGame;
 document.querySelector(".btn-restart").onclick = restartGame;
+
+
+var levelButtons = document.querySelectorAll(".level");
+
+
+var levelInfo = [
+  {
+    name: "CƠ BẢN",
+    description: "Làm quen với cách di chuyển, xoay và xóa các dòng trong Tetris"
+  },
+  {
+    name: "PHÁ CHƯỚNG NGẠI",
+    description: "Lấp đầy hàng chướng ngại vật để xóa chúng khỏi bàn chơi"
+  },
+  {
+    name: "XÓA NHIỀU DÒNG",
+    description: "Cố gắng xóa nhiều dòng cùng lúc để hoàn thành mục tiêu"
+  },
+  {
+    name: "TÌM KHE TRỐNG",
+    description: "Đưa khối vào đúng vị trí để lấp đầy hàng còn thiếu"
+  },
+  {
+    name: "GIỚI HẠN LƯỢT",
+    description: "Hoàn thành mục tiêu trước khi hết số khối được thả"
+  },
+  {
+    name: "THỬ THÁCH CUỐI",
+    description: "Vượt qua chướng ngại vật và hoàn thành mục tiêu"
+  }
+];
+
+
+levelButtons.forEach(function(button, index) {
+  button.onclick = function() {
+    currentLevel = index + 1;
+    document.getElementById("level-display").textContent = currentLevel;
+
+
+    document.querySelector(".level-label").textContent =
+      "MỨC ĐỘ " + currentLevel;
+
+    document.querySelector(".level-info h3").textContent =
+      levelInfo[index].name;
+
+    document.querySelector(".level-info p").textContent =
+      levelInfo[index].description;
+
+
+    levelButtons.forEach(function(btn) {
+      btn.classList.remove("active");
+    });
+
+    button.classList.add("active");
+
+    restartGame();
+
+    if (currentLevel === 2) {
+      createLevel2Obstacles();
+      clearBoard();
+      drawFixed();
+      drawPiece();
+    }
+  };
+});
+
 
 
 document.onkeydown = function (e) {
