@@ -365,15 +365,22 @@ function moveRight() {
 }
 
 
+
+
 function startGame() {
   if (isPlaying) return;
 
   isPlaying = true;
-  nextPiece = null;
 
-  newPiece();
+  if (nextPiece === null) {
+    var nextIndex = Math.floor(Math.random() * pieces.length);
+    nextPiece = {
+      shape: pieces[nextIndex],
+      index: nextIndex
+    };
+  }
 
-  if (!isPlaying) return;
+  drawNextPiece();
 
   clearBoard();
   drawFixed();
@@ -381,6 +388,8 @@ function startGame() {
 
   gameInterval = setInterval(moveDown, 500);
 }
+
+
 
 
 
@@ -393,6 +402,7 @@ function pauseGame() {
 
 function restartGame() {
   clearInterval(gameInterval);
+  gameInterval = null;
   isPlaying = false;
 
   score = 0;
@@ -401,16 +411,28 @@ function restartGame() {
 
   nextPiece = null;
   document.querySelector(".mini-block").innerHTML = "";
+
+
   for (var i = 0; i < ROWS; i++) {
     for (var j = 0; j < COLS; j++) {
       fixedBoard[i][j] = 0;
+      fixedColors[i][j] = "";
     }
   }
+
+
+  var index = Math.floor(Math.random() * pieces.length);
+  currentPiece = pieces[index];
+  currentColor = pieceColors[index];
+
   pieceRow = 0;
-  pieceCol = 3;
+  pieceCol = Math.floor((COLS - currentPiece[0].length) / 2);
+
   clearBoard();
+  drawFixed();
   drawPiece();
 }
+
 
 
 document.querySelector(".btn-start").onclick = startGame;
