@@ -124,7 +124,6 @@ for (var i = 0; i < ROWS; i++) {
 var isFrozen = [];
 var frozenCleared = 0;
 var FROZEN_COLOR = "#7f8c8d"; // màu xám cho ô đóng băng
-
 var frozenColors = [
   "#3498DB",
   "#2ECC71",
@@ -133,7 +132,6 @@ var frozenColors = [
   "#9B59B6",
   "#E74C3C"
 ];
-
 // Lưu vị trí các lỗ gốc của từng hàng đóng băng (để khi phá chỉ xóa đúng những ô đó)
 var frozenHoles = [];
 // Đánh dấu hàng đã phá băng nhưng chưa xóa lần 2 (để đếm thắng)
@@ -206,6 +204,11 @@ var REVERSE_DURATION = 8000; // 8 giây
 // Level 6: Sàn dâng lên
 var risingPieceCount = 0;
 var RISING_INTERVAL = 4;
+// Level 7: Bàn chơi thu hẹp
+var shrinkClearCount = 0; // Đếm số lần xóa dòng
+var leftBound = 0;
+var rightBound = COLS - 1;
+var SHRINK_EVERY = 2; // Mỗi 2 lần xóa thì thu hẹp
 
 for (var i = 0; i < ROWS; i++) {
   isDanger[i] = [];
@@ -248,10 +251,6 @@ function createDangerCells() {
   }
 }
 
-
-function randomPiece() {
-  return Math.floor(Math.random() * pieces.length);
-}
 // Chọn ô bom cho khối nếu đủ điều kiện
 function chooseBombOffset(pieceIndex, shape) {
   // Chỉ Level 5 mới có bom
@@ -312,6 +311,16 @@ function clearBoard() {
 }
 // Vẽ lại các khối đã nằm cố định (kể cả hàng đóng băng và ô nguy hiểm)
 function drawFixed() {
+  // Level 7: tô xám vùng ngoài bàn hẹp
+  if (currentLevel === 7) {
+    for (var i = 0; i < ROWS; i++) {
+      for (var j = 0; j < COLS; j++) {
+        if (j < leftBound || j > rightBound) {
+          cells[i * COLS + j].style.background = "#374151";
+        }
+      }
+    }
+  }
   for (var i = 0; i < ROWS; i++) {
     for (var j = 0; j < COLS; j++) {
       var index = i * COLS + j;
@@ -394,7 +403,11 @@ function canMove(newRow, newCol) {
         var nextRow = newRow + r;
         var nextCol = newCol + c;
 
+        // ( Level 7):
         if (nextCol < 0 || nextCol >= COLS || nextRow >= ROWS) {
+          return false;
+        }
+        if (currentLevel === 7 && (nextCol < leftBound || nextCol > rightBound)) {
           return false;
         }
         if (nextRow >= 0 &&
@@ -508,7 +521,7 @@ function lockPiece() {
       updateReverseStatus();
     }
   }
-// Level 6: Moi 8 khoi thi san dang len
+// Level 6: Moi 4 khoi thi san dang len
   if (currentLevel === 6) {
     risingPieceCount++;
 
@@ -552,6 +565,9 @@ function riseFloor() {
     }
   }
 
+
+
+
   // Day cac hang len tren
   fixedBoard.shift();
   fixedColors.shift();
@@ -577,31 +593,48 @@ function riseFloor() {
   frozenHoles.push(null);
   brokenFrozen.push(false);
   isDanger.push(Array(COLS).fill(false));
-
-  console.log("San dang len!");
-
   clearBoard();
   drawFixed();
   drawPiece();
 }
 
+// Level 7: Thu hẹp bàn chơi
+var shrinkSide = "left"; // Bắt đầu thu hẹp bên trái
 
-
-
-
-function applyGravity(row, col) {
-  // Dồn các ô phía trên xuống 1 ô trong cùng cột
-  for (var r = row; r > 0; r--) {
-    fixedBoard[r][col] = fixedBoard[r - 1][col];
-    fixedColors[r][col] = fixedColors[r - 1][col];
+function shrinkBoard() {
+  // Còn 4 cột thì thua
+  if (rightBound - leftBound + 1 <= 4) {
+    gameOver();
+    return;
   }
 
-  // Ô trên cùng trở thành ô trống
-  fixedBoard[0][col] = 0;
-  fixedColors[0][col] = "";
+  if (shrinkSide === "left") {
+    // Thu hẹp 1 cột bên trái
+    for (var i = 0; i < ROWS; i++) {
+      fixedBoard[i][leftBound] = 0;
+      fixedColors[i][leftBound] = "";
+      fixedBombs[i][leftBound] = false;
+    }
+
+    leftBound++;
+    shrinkSide = "right";
+
+  } else {
+    // Thu hẹp 1 cột bên phải
+    for (var i = 0; i < ROWS; i++) {
+      fixedBoard[i][rightBound] = 0;
+      fixedColors[i][rightBound] = "";
+      fixedBombs[i][rightBound] = false;
+    }
+
+    rightBound--;
+    shrinkSide = "left";
+  }
+
+  clearBoard();
+  drawFixed();
+  drawPiece();
 }
-
-
 
 // Kiểm tra và xóa các hàng đã lấp đầy, sau đó cập nhật điểm
 function clearLines() {
@@ -611,8 +644,10 @@ function clearLines() {
     var full = true;
 
 
-    for (var j = 0; j < COLS; j++) {
-      // Ô nguy hiểm cũng được tính là ô đã lấp đầy
+    var startCol = (currentLevel === 7) ? leftBound : 0;
+    var endCol = (currentLevel === 7) ? rightBound : COLS - 1;
+
+    for (var j = startCol; j <= endCol; j++) {
       if (fixedBoard[i][j] === 0 && !isDanger[i][j]) {
         full = false;
         break;
@@ -701,6 +736,15 @@ function clearLines() {
     clearSound.play();
 
     lines += cleared;
+
+      if (currentLevel === 7) {
+        shrinkClearCount++;
+
+        if (shrinkClearCount >= SHRINK_EVERY) {
+          shrinkClearCount = 0;
+          shrinkBoard();
+        }
+      }
 // Level 4: Xóa hàng thì thoát trạng thái đảo chiều ngay
     if (currentLevel === 4 && Date.now() < reverseControlsUntil) {
       reverseControlsUntil = 0;
@@ -750,11 +794,17 @@ function checkWin() {
       won = true;
     }
   } else if (currentLevel === 6) {
+    // Level 6: Xóa đủ 15 dòng
     if (lines >= 15) {
       won = true;
     }
-    } else {
-    // Các level khác: thắng khi xóa đủ 10 dòng
+  } else if (currentLevel === 7) {
+    // Level 7: Xóa đủ 15 dòng
+    if (lines >= 15) {
+      won = true;
+    }
+  } else {
+    // Các level khác (1, 4,...): thắng khi xóa đủ 10 dòng
     if (lines >= 10) {
       won = true;
     }
@@ -775,7 +825,6 @@ function newPiece() {
 
   if (nextPiece === null) {
     currentIndex = Math.floor(Math.random() * pieces.length);
-    currentPiece = pieces[currentIndex];
     prepareCurrentBomb(currentIndex);
   } else {
     currentIndex = nextPiece.index;
@@ -794,7 +843,12 @@ function newPiece() {
   prepareNextBomb(nextPiece);
 
   pieceRow = 0;
-  pieceCol = Math.floor((COLS - currentPiece[0].length) / 2);
+  if (currentLevel === 7) {
+    var width = rightBound - leftBound + 1;
+    pieceCol = leftBound + Math.floor((width - currentPiece[0].length) / 2);
+  } else {
+    pieceCol = Math.floor((COLS - currentPiece[0].length) / 2);
+  }
 
   drawNextPiece();
 
@@ -1030,6 +1084,11 @@ function restartGame() {
   dangerContactSince = null;
   lockedPieceCount = 0;
   risingPieceCount = 0;
+  // Level 7 reset
+  shrinkClearCount = 0;
+  leftBound = 0;
+  rightBound = COLS - 1;
+  shrinkSide = "left";
   reverseControlsUntil = 0;
   pendingBomb = null;
   currentBombOffset = null;
@@ -1047,22 +1106,23 @@ function restartGame() {
 
   prepareCurrentBomb(index);
   pieceRow = 0;
-  pieceCol = Math.floor((COLS - currentPiece[0].length) / 2);
+  if (currentLevel === 7) {
+    var width = rightBound - leftBound + 1;
+    pieceCol = leftBound + Math.floor((width - currentPiece[0].length) / 2);
+  } else {
+    pieceCol = Math.floor((COLS - currentPiece[0].length) / 2);
+  }
 
   clearBoard();
   drawFixed();
   drawPiece();
 }
 
-
-
 document.querySelector(".btn-start").onclick = startGame;
 document.querySelector(".btn-pause").onclick = pauseGame;
 document.querySelector(".btn-restart").onclick = restartGame;
 
-
 var levelButtons = document.querySelectorAll(".level");
-
 
 var levelInfo = [
   {
@@ -1097,11 +1157,12 @@ var levelInfo = [
   },
   {
     name: "BÀN CHƠI THU HẸP",
-    description: "Sau mỗi 4 dòng được xóa, bàn chơi sẽ hẹp lại. Hãy đặt khối chính xác và xóa đủ 6 dòng trước khi hết chỗ."
+  description: "Sau mỗi 2 lần xóa dòng thành công, bàn chơi sẽ hẹp lại 1 cột, luân phiên bên trái và bên phải. Hãy cố gắng xóa nhiều dòng cùng lúc để đạt mục tiêu, Bạn sẽ thu nếu bàn chơi còn 4 cột hoặc chạm đỉnh.",
+  target: "Xóa 15 dòng"
   },
   {
     name: "ĐẢO CHIỀU KHỐI",
-    description: "Khi chạm đáy hoặc khối đã cố định, khối đang rơi xoay ngược 180 độ trước khi khóa vị trí. Hãy dự đoán hình dạng mới để xếp khối chính xác."
+    description: "Khi chạm đáy hoặc khối đã cố định, khối sẽ tự xoay ngược 180 độ trước khi khóa vị trí. Hãy dự đoán hình dạng mới để xếp khối chính xác."
   }
 ];
 
@@ -1109,7 +1170,6 @@ levelButtons.forEach(function(button, index) {
   button.onclick = function() {
     currentLevel = index + 1;
     document.getElementById("level-display").textContent = currentLevel;
-
 
     document.querySelector(".level-label").textContent = "MỨC ĐỘ " + currentLevel;
 
@@ -1129,7 +1189,6 @@ levelButtons.forEach(function(button, index) {
 
   };
 });
-
 
 // Xử lý các phím điều khiển trong lúc chơi
 document.onkeydown = function (e) {
