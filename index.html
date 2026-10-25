@@ -164,6 +164,22 @@
       height: 28px;
       border: 1px solid #1f2937;
       background: #111827;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cell.bomb-cell::after {
+      content: "";
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      border: 2px solid #fecaca;
+      border-radius: 50%;
+      background: #991b1b;
+      z-index: 1;
     }
 
     /* Nút điều khiển */
@@ -218,6 +234,23 @@
 
     .mini-block span {
       background: #4a90e2;
+    }
+
+    .mini-block span.preview-bomb {
+      position: relative;
+    }
+
+    .mini-block span.preview-bomb::after {
+      content: "";
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      border: 2px solid #fecaca;
+      border-radius: 50%;
+      background: #991b1b;
     }
 
     /* Mục tiêu */
@@ -388,6 +421,10 @@
           <span>SỐ DÒNG</span>
           <strong id="lines">000000</strong>
         </div>
+
+      </div>
+      <div id="reverse-status" style="display: none; color: #e74c3c; font-weight: bold; font-size: 14px;">
+        ĐẢO CHIỀU
       </div>
       <div class="game-board"></div>
       <div class="game-buttons">

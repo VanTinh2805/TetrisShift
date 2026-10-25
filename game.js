@@ -99,14 +99,25 @@ var currentColor = pieceColors[pieces.indexOf(currentPiece) % pieceColors.length
 // Lưu vị trí và màu sắc của các khối đã cố định trên bàn chơi
 var fixedBoard = [];
 var fixedColors = [];
+// ===== Level 5: Bom phá hủy =====
 
+// Lưu các ô bom đã được khóa xuống bàn
+var fixedBombs = [];
+
+// Vị trí ô bom trong khối đang rơi
+var currentBombOffset = null;
+
+// Quả bom đang chờ phát nổ
+var pendingBomb = null;
 for (var i = 0; i < ROWS; i++) {
   fixedBoard[i] = [];
   fixedColors[i] = [];
+  fixedBombs[i] = [];
 
   for (var j = 0; j < COLS; j++) {
     fixedBoard[i][j] = 0;
     fixedColors[i][j] = "";
+    fixedBombs[i][j] = false;
   }
 }
 // ===== Level 2: Hàng đóng băng =====
@@ -186,7 +197,15 @@ var DANGER_COLOR = "#FFFFFF"; // trắng - phân biệt rõ với khối O (#F1C
 var DANGER_BORDER_COLOR = "#8B0000";
 // // Level 3: thời gian khối bị kẹt khi chạm ô nguy hiểm
 var dangerContactSince = null;
-var DANGER_LIMIT = 1000; // 1000ms = 1 giây → người chơi kịp phản ứng
+var DANGER_LIMIT = 1000; // 1000ms = 1 giây
+
+// ===== Level 4: Đảo chiều điều khiển =====
+var lockedPieceCount = 0;
+var reverseControlsUntil = 0;
+var REVERSE_DURATION = 8000; // 8 giây
+// Level 6: Sàn dâng lên
+var risingPieceCount = 0;
+var RISING_INTERVAL = 4;
 
 for (var i = 0; i < ROWS; i++) {
   isDanger[i] = [];
@@ -194,6 +213,7 @@ for (var i = 0; i < ROWS; i++) {
     isDanger[i][j] = false;
   }
 }
+
 
 function createDangerCells() {
   // Xóa trạng thái nguy hiểm cũ
@@ -205,39 +225,89 @@ function createDangerCells() {
 
   dangerCount = 0;
 
-  // Ô nguy hiểm thứ nhất: luôn ở hàng 19
-  var row1 = 19;
-  var col1 = Math.floor(Math.random() * COLS);
+  // Cố định 3 ô nguy hiểm tại hàng 15, 17, 19
+  var dangerRows = [15, 17, 19];
+  var usedCols = [];
 
-  isDanger[row1][col1] = true;
-  dangerCount++;
+  for (var k = 0; k < dangerRows.length; k++) {
+    var row = dangerRows[k];
+    var col;
 
-  // Ô nguy hiểm thứ hai: ngẫu nhiên ở hàng 17 hoặc 18
-  var row2 = Math.random() < 0.5 ? 17 : 18;
-  var col2;
+    // Chọn cột ngẫu nhiên, không trùng nhau
+    do {
+      col = Math.floor(Math.random() * COLS);
+    } while (usedCols.indexOf(col) !== -1);
 
-  // Đảm bảo hai ô không cùng cột
-  do {
-    col2 = Math.floor(Math.random() * COLS);
-  } while (col2 === col1);
+    usedCols.push(col);
 
-  isDanger[row2][col2] = true;
-  dangerCount++;
+    isDanger[row][col] = true;
+    fixedBoard[row][col] = 0;
+    fixedColors[row][col] = DANGER_COLOR;
 
-  // Vẽ màu đỏ cho hai ô nguy hiểm
-  fixedColors[row1][col1] = DANGER_COLOR;
-  fixedColors[row2][col2] = DANGER_COLOR;
+    dangerCount++;
+  }
 }
 
 
 function randomPiece() {
   return Math.floor(Math.random() * pieces.length);
 }
+// Chọn ô bom cho khối nếu đủ điều kiện
+function chooseBombOffset(pieceIndex, shape) {
+  // Chỉ Level 5 mới có bom
+  if (currentLevel !== 5) return null;
+
+  // Nếu đang có bom chờ nổ thì không tạo bom mới
+  if (pendingBomb !== null) return null;
+
+  // Chỉ khối O, T, L được chứa bom
+  // O = 1, T = 2, L = 3
+  if (![1, 2, 3].includes(pieceIndex)) return null;
+
+  // 40% cơ hội xuất hiện bom
+  if (Math.random() >= 0.4) return null;
+
+  // Tìm các ô có khối để chọn vị trí bom
+  var occupiedCells = [];
+
+  for (var r = 0; r < shape.length; r++) {
+    for (var c = 0; c < shape[r].length; c++) {
+      if (shape[r][c] === 1) {
+        occupiedCells.push({ r: r, c: c });
+      }
+    }
+  }
+
+  // Chọn ngẫu nhiên một ô trong khối
+  var randomIndex = Math.floor(
+    Math.random() * occupiedCells.length
+  );
+
+  return occupiedCells[randomIndex];
+}
+
+// Chọn ô bom cho khối đang rơi
+function prepareCurrentBomb(pieceIndex) {
+  currentBombOffset = chooseBombOffset(pieceIndex, currentPiece);
+}
+
+// Chọn trước bom của khối kế tiếp để hiển thị đúng trong ô preview
+function prepareNextBomb(piece) {
+  // Nếu khối đang rơi đã mang bom, nó sẽ tạo quả bom chờ nổ khi được khóa
+  if (currentBombOffset !== null) {
+    piece.bombOffset = null;
+    return;
+  }
+
+  piece.bombOffset = chooseBombOffset(piece.index, piece.shape);
+}
 // Xóa phần hiển thị cũ trước khi vẽ lại bàn chơi
 function clearBoard() {
   for (var i = 0; i < cells.length; i++) {
     cells[i].style.background = "#111827";
     cells[i].style.border = "";
+    cells[i].textContent = "";
+    cells[i].classList.remove("bomb-cell");
   }
 }
 // Vẽ lại các khối đã nằm cố định (kể cả hàng đóng băng và ô nguy hiểm)
@@ -247,13 +317,21 @@ function drawFixed() {
       var index = i * COLS + j;
 
       if (fixedBoard[i][j] === 1) {
-        cells[index].style.background = fixedColors[i][j];
-    } else if (isDanger[i][j]) {
-      // Ô nguy hiểm Level 3: fixedBoard=0 nhưng vẫn hiển thị màu đỏ
-      cells[index].style.background = DANGER_COLOR;
-      cells[index].style.border = "3px solid " + DANGER_BORDER_COLOR;
-      cells[index].style.boxSizing = "border-box";
-    }
+        if (fixedBombs[i][j]) {
+          // Giữ màu ô khối, thêm biểu tượng bom tròn ở giữa
+          cells[index].style.background = fixedColors[i][j];
+          cells[index].classList.add("bomb-cell");
+        } else {
+          cells[index].style.background = fixedColors[i][j];
+          cells[index].style.border = "";
+        }
+      } else if (isDanger[i][j]) {
+        // Ô nguy hiểm Level 3
+        cells[index].style.background = DANGER_COLOR;
+        cells[index].style.border =
+          "3px solid " + DANGER_BORDER_COLOR;
+        cells[index].style.boxSizing = "border-box";
+      }
     }
   }
 }
@@ -262,9 +340,22 @@ function drawPiece() {
   for (var r = 0; r < currentPiece.length; r++) {
     for (var c = 0; c < currentPiece[r].length; c++) {
       if (currentPiece[r][c] === 1) {
-        var index = (pieceRow + r) * COLS + (pieceCol + c);
+        var row = pieceRow + r;
+        var col = pieceCol + c;
+        var index = row * COLS + col;
+
         if (index >= 0 && index < cells.length) {
-          cells[index].style.background = currentColor;
+          if (
+            currentBombOffset !== null &&
+            currentBombOffset.r === r &&
+            currentBombOffset.c === c
+          ) {
+            cells[index].style.background = currentColor;
+            cells[index].classList.add("bomb-cell");
+          } else {
+            cells[index].style.background = currentColor;
+            cells[index].style.border = "";
+          }
         }
       }
     }
@@ -317,45 +408,184 @@ function canMove(newRow, newCol) {
   return true;
 }
 // Xoay khối 90 độ, nếu vị trí mới không hợp lệ thì giữ nguyên khối cũ
-function rotatePiece(){
+function rotatePiece() {
   var newPiece = [];
   var rows = currentPiece.length;
   var cols = currentPiece[0].length;
-  for(var c = 0; c < cols; c++){
+
+  for (var c = 0; c < cols; c++) {
     newPiece[c] = [];
+
     for (var r = rows - 1; r >= 0; r--) {
       newPiece[c].push(currentPiece[r][c]);
     }
   }
+
   var oldPiece = currentPiece;
+  var oldBombOffset = currentBombOffset;
+
+  if (currentBombOffset !== null) {
+    currentBombOffset = {
+      r: oldBombOffset.c,
+      c: rows - 1 - oldBombOffset.r
+    };
+  }
+
   currentPiece = newPiece;
 
   if (!canMove(pieceRow, pieceCol)) {
     currentPiece = oldPiece;
-  } else {
-
-    clearBoard();
-    drawFixed();
-    drawPiece();
+    currentBombOffset = oldBombOffset;
   }
+
+  clearBoard();
+  drawFixed();
+  drawPiece();
 }
 // Khi khối không rơi xuống được nữa thì cố định khối vào bàn chơi
 // Guard !isDanger: không ghi đè lên ô nguy hiểm Level 3
 function lockPiece() {
+  var newBombPosition = null;
+
+  // Khóa các ô của khối hiện tại xuống bàn
   for (var r = 0; r < currentPiece.length; r++) {
     for (var c = 0; c < currentPiece[r].length; c++) {
       if (currentPiece[r][c] === 1) {
         var row = pieceRow + r;
         var col = pieceCol + c;
 
-        if (row >= 0 && row < ROWS && col >= 0 && col < COLS && !isDanger[row][col]) {
+        if (
+          row >= 0 && row < ROWS &&
+          col >= 0 && col < COLS &&
+          !isDanger[row][col]
+        ) {
           fixedBoard[row][col] = 1;
           fixedColors[row][col] = currentColor;
+          fixedBombs[row][col] = false;
+
+          // Lưu vị trí ô bom
+          if (
+            currentBombOffset !== null &&
+            currentBombOffset.r === r &&
+            currentBombOffset.c === c
+          ) {
+            fixedBombs[row][col] = true;
+
+            newBombPosition = {
+              row: row,
+              col: col
+            };
+          }
         }
       }
     }
   }
+
+  // Đếm khối tiếp theo sau khi bom đã được đặt
+  if (pendingBomb !== null) {
+    pendingBomb.blocksLeft--;
+
+    if (pendingBomb.blocksLeft <= 0) {
+      explodeBomb();
+    }
+  }
+
+  // Bom mới bắt đầu chờ sau khi khối chứa bom được khóa
+  if (newBombPosition !== null) {
+    pendingBomb = {
+      row: newBombPosition.row,
+      col: newBombPosition.col,
+      blocksLeft: 2
+    };
+  }
+
+// Level 4: Đếm số khối đã được cố định
+  if (currentLevel === 4) {
+    lockedPieceCount++;
+// // Cứ 8 khối thì đảo chiều trong 8 giây
+    if (lockedPieceCount % 8 === 0) {
+      reverseControlsUntil = Date.now() + REVERSE_DURATION;
+      updateReverseStatus();
+    }
+  }
+// Level 6: Moi 8 khoi thi san dang len
+  if (currentLevel === 6) {
+    risingPieceCount++;
+
+    if (risingPieceCount % RISING_INTERVAL === 0) {
+      riseFloor();
+
+      if (!isPlaying) return;
+    }
+  }
+  currentBombOffset = null;
 }
+
+function explodeBomb() {
+  if (pendingBomb === null) return;
+
+  var bombRow = pendingBomb.row;
+  var bombCol = pendingBomb.col;
+
+  // Phá hủy vùng 3x3 quanh bom
+  for (var r = bombRow - 1; r <= bombRow + 1; r++) {
+    for (var c = bombCol - 1; c <= bombCol + 1; c++) {
+      if (
+        r >= 0 && r < ROWS &&
+        c >= 0 && c < COLS
+      ) {
+        fixedBoard[r][c] = 0;
+        fixedColors[r][c] = "";
+        fixedBombs[r][c] = false;
+      }
+    }
+  }
+
+  pendingBomb = null;
+}
+// Level 6: San dang len
+function riseFloor() {
+  for (var j = 0; j < COLS; j++) {
+    if (fixedBoard[0][j] === 1) {
+      gameOver();
+      return;
+    }
+  }
+
+  // Day cac hang len tren
+  fixedBoard.shift();
+  fixedColors.shift();
+  fixedBombs.shift();
+  isFrozen.shift();
+  frozenHoles.shift();
+  brokenFrozen.shift();
+  isDanger.shift();
+
+  // Tao hang moi o day
+  var newRow = Array(COLS).fill(1);
+  var newColorRow = Array(COLS).fill("#7f8c8d");
+
+  // 1 lỗ ngẫu nhiên
+  var hole = Math.floor(Math.random() * COLS);
+  newRow[hole] = 0;
+  newColorRow[hole] = "";
+
+  fixedBoard.push(newRow);
+  fixedColors.push(newColorRow);
+  fixedBombs.push(Array(COLS).fill(false));
+  isFrozen.push(false);
+  frozenHoles.push(null);
+  brokenFrozen.push(false);
+  isDanger.push(Array(COLS).fill(false));
+
+  console.log("San dang len!");
+
+  clearBoard();
+  drawFixed();
+  drawPiece();
+}
+
+
 
 
 
@@ -434,6 +664,16 @@ function clearLines() {
           }
         }
       }
+// Cập nhật vị trí bom nếu có hàng bị xóa
+      if (pendingBomb !== null) {
+        if (pendingBomb.row === i) {
+          // Hàng chứa bom bị xóa
+          pendingBomb = null;
+        } else if (pendingBomb.row < i) {
+          // Hàng phía trên bị dồn xuống
+          pendingBomb.row++;
+        }
+      }
 
       fixedBoard.splice(i, 1);
       fixedColors.splice(i, 1);
@@ -441,6 +681,7 @@ function clearLines() {
       frozenHoles.splice(i, 1);
       brokenFrozen.splice(i, 1);
       isDanger.splice(i, 1);
+      fixedBombs.splice(i, 1);
 
       fixedBoard.unshift(Array(COLS).fill(0));
       fixedColors.unshift(Array(COLS).fill(""));
@@ -448,6 +689,7 @@ function clearLines() {
       frozenHoles.unshift(null);
       brokenFrozen.unshift(false);
       isDanger.unshift(Array(COLS).fill(false));
+      fixedBombs.unshift(Array(COLS).fill(false));
 
       cleared++;
       i++;
@@ -459,7 +701,11 @@ function clearLines() {
     clearSound.play();
 
     lines += cleared;
-
+// Level 4: Xóa hàng thì thoát trạng thái đảo chiều ngay
+    if (currentLevel === 4 && Date.now() < reverseControlsUntil) {
+      reverseControlsUntil = 0;
+      updateReverseStatus();
+    }
     if (cleared === 1) {
       score += 100;
     } else if (cleared === 2) {
@@ -494,11 +740,20 @@ function checkWin() {
       won = true;
     }
   } else if (currentLevel === 3) {
-    // Level 3: thắng khi xóa đủ 8 dòng mà không đè ô đỏ
-    if (lines >= 8) {
+    // Level 3: thắng khi xóa hết 3 ô nguy hiểm VÀ ít nhất 5 dòng
+    if (dangerCount <= 0 && lines >= 5) {
       won = true;
     }
-  } else {
+  } else if (currentLevel === 5) {
+    // Level 5: Xóa đủ 12 dòng để chiến thắng
+    if (lines >= 12) {
+      won = true;
+    }
+  } else if (currentLevel === 6) {
+    if (lines >= 15) {
+      won = true;
+    }
+    } else {
     // Các level khác: thắng khi xóa đủ 10 dòng
     if (lines >= 10) {
       won = true;
@@ -520,8 +775,11 @@ function newPiece() {
 
   if (nextPiece === null) {
     currentIndex = Math.floor(Math.random() * pieces.length);
+    currentPiece = pieces[currentIndex];
+    prepareCurrentBomb(currentIndex);
   } else {
     currentIndex = nextPiece.index;
+    currentBombOffset = nextPiece.bombOffset || null;
   }
 
   currentPiece = pieces[currentIndex];
@@ -530,8 +788,10 @@ function newPiece() {
   var nextIndex = Math.floor(Math.random() * pieces.length);
   nextPiece = {
     shape: pieces[nextIndex],
-    index: nextIndex
+    index: nextIndex,
+    bombOffset: null
   };
+  prepareNextBomb(nextPiece);
 
   pieceRow = 0;
   pieceCol = Math.floor((COLS - currentPiece[0].length) / 2);
@@ -568,6 +828,14 @@ function drawNextPiece() {
 
       if (nextPiece.shape[r][c] === 1) {
         span.style.background = pieceColors[nextPiece.index];
+        if (
+          nextPiece.bombOffset !== null &&
+          nextPiece.bombOffset !== undefined &&
+          nextPiece.bombOffset.r === r &&
+          nextPiece.bombOffset.c === c
+        ) {
+          span.classList.add("preview-bomb");
+        }
       } else {
         span.style.background = "transparent";
       }
@@ -626,26 +894,58 @@ function moveDown() {
   clearBoard();
   drawFixed();
   drawPiece();
+  updateReverseStatus();
 }
 
 
 
-// Di chuyển khối sang trái hoặc phải nếu vị trí mới hợp lệ
+
 function moveLeft() {
-  if (canMove(pieceRow, pieceCol - 1)) {
-    pieceCol--;
+  var direction = -1;
+
+  // Level 4: Đảo chiều trái/phải
+  if (
+    currentLevel === 4 &&
+    Date.now() < reverseControlsUntil
+  ) {
+    direction = 1;
+  }
+
+  if (canMove(pieceRow, pieceCol + direction)) {
+    pieceCol += direction;
     clearBoard();
     drawFixed();
     drawPiece();
   }
 }
-// Di chuyển khối sang trái hoặc phải nếu vị trí mới hợp lệ
+
+
 function moveRight() {
-  if (canMove(pieceRow, pieceCol + 1)) {
-    pieceCol++;
+  var direction = 1;
+
+  // Level 4: Đảo chiều trái/phải
+  if (
+    currentLevel === 4 &&
+    Date.now() < reverseControlsUntil
+  ) {
+    direction = -1;
+  }
+
+  if (canMove(pieceRow, pieceCol + direction)) {
+    pieceCol += direction;
     clearBoard();
     drawFixed();
     drawPiece();
+  }
+}
+function updateReverseStatus() {
+  var statusEl = document.getElementById("reverse-status");
+  if (!statusEl) return;
+
+  if (currentLevel === 4 && Date.now() < reverseControlsUntil) {
+    statusEl.style.display = "block";
+  } else {
+    statusEl.style.display = "none";
   }
 }
 
@@ -675,8 +975,10 @@ function startGame() {
     var nextIndex = Math.floor(Math.random() * pieces.length);
     nextPiece = {
       shape: pieces[nextIndex],
-      index: nextIndex
+      index: nextIndex,
+      bombOffset: null
     };
+    prepareNextBomb(nextPiece);
   }
 
   drawNextPiece();
@@ -717,6 +1019,7 @@ function restartGame() {
       fixedBoard[i][j] = 0;
       fixedColors[i][j] = "";
       isDanger[i][j] = false;   // reset ô nguy hiểm
+      fixedBombs[i][j] = false;
     }
     isFrozen[i] = false;
     frozenHoles[i] = null;
@@ -725,6 +1028,11 @@ function restartGame() {
   frozenCleared = 0;
   dangerCount = 0;
   dangerContactSince = null;
+  lockedPieceCount = 0;
+  risingPieceCount = 0;
+  reverseControlsUntil = 0;
+  pendingBomb = null;
+  currentBombOffset = null;
 
   // Khởi tạo cơ chế theo level
   if (currentLevel === 2) {
@@ -737,6 +1045,7 @@ function restartGame() {
   currentPiece = pieces[index];
   currentColor = pieceColors[index];
 
+  prepareCurrentBomb(index);
   pieceRow = 0;
   pieceCol = Math.floor((COLS - currentPiece[0].length) / 2);
 
@@ -767,21 +1076,24 @@ var levelInfo = [
     target: "Xóa hàng bị đóng băng + 5 dòng"
   },
   {
-    name: "VÙNG NGUY HIỂM",
-    description: "2 ô đỏ nguy hiểm ẩn ở đáy bàn chơi. Nếu khối của bạn đè xuống đúng vào ô đỏ — thua ngay! Hãy điều hướng thật cẩn thận.",
-    target: "Xóa 8 dòng\n(không đè ô đỏ)"
+    name: "Ô NGUY HIỂM",
+    description: "3 ô nguy hiểm màu trắng xuất hiện ở đáy bàn chơi. Khối đè lên ô nguy hiểm quá 1 giây sẽ thua! Lấp đầy hàng chứa ô nguy hiểm để xóa ô nguy hiểm.",
+    target: "Xóa 3 ô nguy hiểm + 5 dòng"
   },
   {
     name: "ĐẢO CHIỀU ĐIỀU KHIỂN",
-    description: "Sau mỗi 5 khối được cố định, phím trái và phải sẽ bị đảo trong 3 giây. Hãy điều chỉnh thao tác để đặt khối đúng vị trí."
+    description: "Sau mỗi 8 khối được cố định, phím trái và phải sẽ bị đảo trong 8 giây. Xóa được 1 hàng sẽ thoát khỏi trạng thái đảo chiều sớm hơn.",
+    target: "Xoá 10 Dòng"
   },
   {
     name: "BOM PHÁ HỦY",
-    description: "Bom xuất hiện ngẫu nhiên trong lượt chơi. Khi kích hoạt, bom phá các ô trong vùng 3×3 xung quanh."
+    description: "Một số khối có một xác suất mang bom. Khi khối mang bom được cố định, bom sẽ phát nổ sau khi 2 khối tiếp theo được cố định, phá hủy các ô trong vùng 3×3 xung quanh. Các khối phía trên không dồn xuống.",
+    target: "Xoá 12 Dòng"
   },
   {
     name: "SÀN DÂNG LÊN",
-    description: "Sau mỗi 8 khối được cố định, sàn sẽ dâng lên khiến không gian chơi ít dần."
+    description: "Sau mỗi 4 khối được cố định, sàn dâng lên một hàng có 1 ô trống ngẫu nhiên. Không gian chơi ngày càng thu hẹp.",
+    target: "Xóa 15 dòng"
   },
   {
     name: "BÀN CHƠI THU HẸP",
