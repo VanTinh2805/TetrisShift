@@ -307,6 +307,7 @@ function clearBoard() {
     cells[i].style.border = "";
     cells[i].textContent = "";
     cells[i].classList.remove("bomb-cell");
+    cells[i].classList.remove("ghost-cell"); // Xóa bóng cũ
   }
 }
 // Vẽ lại các khối đã nằm cố định (kể cả hàng đóng băng và ô nguy hiểm)
@@ -343,6 +344,8 @@ function drawFixed() {
       }
     }
   }
+  // Vẽ bóng dự đoán vị trí khối sẽ khóa
+  drawGhost();
 }
 // Hiển thị khối đang rơi theo vị trí hiện tại
 function drawPiece() {
@@ -354,6 +357,7 @@ function drawPiece() {
         var index = row * COLS + col;
 
         if (index >= 0 && index < cells.length) {
+          cells[index].classList.remove("ghost-cell");
           if (
             currentBombOffset !== null &&
             currentBombOffset.r === r &&
@@ -370,6 +374,134 @@ function drawPiece() {
     }
   }
 }
+
+
+/* ===== BÓNG ĐỔ CHO CÁC LEVEL ===== */
+
+// Kiểm tra một hình khối có vừa vị trí được chỉ định không
+function canShapeFit(shape, row, col) {
+  for (var r = 0; r < shape.length; r++) {
+    for (var c = 0; c < shape[r].length; c++) {
+      if (shape[r][c] !== 1) continue;
+
+      var nextRow = row + r;
+      var nextCol = col + c;
+
+      // Không được vượt khỏi bàn chơi
+      if (
+        nextCol < 0 ||
+        nextCol >= COLS ||
+        nextRow >= ROWS
+      ) {
+        return false;
+      }
+
+      // Level 7: không được vượt khỏi bàn chơi đã thu hẹp
+      if (
+        currentLevel === 7 &&
+        (nextCol < leftBound || nextCol > rightBound)
+      ) {
+        return false;
+      }
+
+      // Không được chồng lên khối đã khóa hoặc ô nguy hiểm
+      if (
+        nextRow >= 0 &&
+        (
+          fixedBoard[nextRow][nextCol] === 1 ||
+          (currentLevel === 3 && isDanger[nextRow][nextCol])
+        )
+      ) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+// Xoay bản sao của khối 180 độ, không làm thay đổi khối thật
+function rotate180Copy(shape) {
+  var result = [];
+
+  for (var r = shape.length - 1; r >= 0; r--) {
+    result.push(shape[r].slice().reverse());
+  }
+
+  return result;
+}
+
+
+function drawGhost() {
+  // Bắt đầu từ vị trí và hình dạng của khối thật
+  var ghostRow = pieceRow;
+  var ghostCol = pieceCol;
+  var ghostShape = currentPiece;
+
+  // Bước 1: Mô phỏng khối ban đầu rơi xuống thấp nhất
+  while (
+    canShapeFit(currentPiece, ghostRow + 1, ghostCol)
+    ) {
+    ghostRow++;
+  }
+
+  // Bước 2: Riêng Level 8, xoay khối sau khi đã rơi
+  if (currentLevel === 8) {
+    var rotatedShape = rotate180Copy(currentPiece);
+
+    // Thử rơi xuống thấp hơn với hình xoay
+    var tempRow = ghostRow;
+    while (canShapeFit(rotatedShape, tempRow + 1, ghostCol)) {
+      tempRow++;
+    }
+
+    // Nếu vừa tại tempRow → dùng hình xoay
+    if (canShapeFit(rotatedShape, tempRow, ghostCol)) {
+      ghostShape = rotatedShape;
+      ghostRow = tempRow;
+    } else {
+      // Thử kick up tối đa 2 hàng
+      var kicked = false;
+      for (var k = 1; k <= 2; k++) {
+        if (canShapeFit(rotatedShape, tempRow - k, ghostCol)) {
+          ghostShape = rotatedShape;
+          ghostRow = tempRow - k;
+          kicked = true;
+          break;
+        }
+      }
+      // Không kick được trong 2 hàng → giữ hình gốc (không xoay)
+      if (!kicked) {
+        ghostShape = currentPiece;
+        ghostRow = ghostRow; // giữ ghostRow gốc
+      }
+    }
+  }
+
+  // Bước 3: Vẽ bóng tại vị trí dự đoán
+  for (var r = 0; r < ghostShape.length; r++) {
+    for (var c = 0; c < ghostShape[r].length; c++) {
+      if (ghostShape[r][c] !== 1) continue;
+
+      var row = ghostRow + r;
+      var col = ghostCol + c;
+
+      if (
+        row < 0 || row >= ROWS ||
+        col < 0 || col >= COLS
+      ) {
+        continue;
+      }
+
+      var index = row * COLS + col;
+
+      cells[index].style.background = currentColor;
+      cells[index].classList.add("ghost-cell");
+    }
+  }
+}
+
+
 
 function touchesDanger(newRow, newCol) {
   for (var r = 0; r < currentPiece.length; r++) {
@@ -410,10 +542,14 @@ function canMove(newRow, newCol) {
         if (currentLevel === 7 && (nextCol < leftBound || nextCol > rightBound)) {
           return false;
         }
-        if (nextRow >= 0 &&
-          (fixedBoard[nextRow][nextCol] === 1 || isDanger[nextRow][nextCol])) {
+        if (
+          nextRow >= 0 &&
+          (
+            fixedBoard[nextRow][nextCol] === 1 ||
+            (currentLevel === 3 && isDanger[nextRow][nextCol])
+          )
+        ) {
           return false;
-
         }
       }
     }
@@ -458,8 +594,58 @@ function rotatePiece() {
 // Khi khối không rơi xuống được nữa thì cố định khối vào bàn chơi
 // Guard !isDanger: không ghi đè lên ô nguy hiểm Level 3
 function lockPiece() {
-  var newBombPosition = null;
 
+  // ===== LEVEL 8: ĐẢO CHIỀU KHỐI =====
+  if (currentLevel === 8) {
+    var oldRows = currentPiece.length;
+    var oldBombOffset = currentBombOffset;
+
+    //Xoay khối 180 độ
+    var rotatedPiece = [];
+
+    for (var r = oldRows - 1; r >= 0; r--) {
+      rotatedPiece.push(currentPiece[r].slice().reverse());
+    }
+
+    currentPiece = rotatedPiece;
+
+    //Cập nhật vị trí bom sau khi xoay
+    if (oldBombOffset !== null) {
+      currentBombOffset = {
+        r: oldRows - 1 - oldBombOffset.r,
+        c: currentPiece[0].length - 1 - oldBombOffset.c
+      };
+    }
+
+    // Lưu hình gốc trước khi xoay (dùng nếu cần revert)
+    var originalPiece = currentPiece.map(function(row) { return row.slice(); });
+
+    // Thử rơi xuống thấp hơn với hình đã xoay
+    while (canMove(pieceRow + 1, pieceCol)) {
+      pieceRow++;
+    }
+
+    // Kiểm tra vừa tại vị trí hiện tại
+    if (canMove(pieceRow, pieceCol)) {
+      // Khối xoay vừa → giữ nguyên
+    } else {
+      // Thử kick up tối đa 2 hàng
+      var kicked = false;
+      for (var k = 1; k <= 2; k++) {
+        if (pieceRow - k >= 0 && canMove(pieceRow - k, pieceCol)) {
+          pieceRow -= k;
+          kicked = true;
+          break;
+        }
+      }
+      if (!kicked) {
+        // Không vừa trong 2 hàng → revert về hình gốc, không xoay
+        currentPiece = originalPiece;
+        currentBombOffset = oldBombOffset;
+      }
+    }
+  }
+  var newBombPosition = null;
   // Khóa các ô của khối hiện tại xuống bàn
   for (var r = 0; r < currentPiece.length; r++) {
     for (var c = 0; c < currentPiece[r].length; c++) {
@@ -798,17 +984,24 @@ function checkWin() {
     if (lines >= 15) {
       won = true;
     }
+
   } else if (currentLevel === 7) {
     // Level 7: Xóa đủ 15 dòng
     if (lines >= 15) {
       won = true;
     }
+  } else if (currentLevel === 8) {
+    // Level 8: Xóa đủ 15 dòng
+    if (lines >= 15) {
+      won = true;
+    }
   } else {
-    // Các level khác (1, 4,...): thắng khi xóa đủ 10 dòng
+    // Các level khác (1, 4,...)
     if (lines >= 10) {
       won = true;
     }
   }
+
 
   if (won) {
     clearInterval(gameInterval);
@@ -934,8 +1127,18 @@ function moveDown() {
   // Nếu không phải ô nguy hiểm thì khóa khối như bình thường
   dangerContactSince = null;
 
-  // lockPiece bình thường (hitDanger cho Lv3 đã xử lý bằng timer ở trên)
+
+  // Khóa khối sau khi chạm đáy hoặc chạm khối khác
   lockPiece();
+
+  // Nếu Level 8 đã Game Over thì dừng ngay,
+  // không tiếp tục xử lý xóa dòng nữa
+  if (!isPlaying) return;
+
+  // Chỉ xóa dòng khi trò chơi vẫn đang hoạt động
+  clearLines();
+
+  if (!isPlaying) return;
 
   clearLines();
 
@@ -1162,7 +1365,8 @@ var levelInfo = [
   },
   {
     name: "ĐẢO CHIỀU KHỐI",
-    description: "Khi chạm đáy hoặc khối đã cố định, khối sẽ tự xoay ngược 180 độ trước khi khóa vị trí. Hãy dự đoán hình dạng mới để xếp khối chính xác."
+    description: "Khi chạm đáy hoặc khối đã cố định, khối sẽ tự xoay ngược 180 độ trước khi khóa vị trí. Hãy dự đoán hình dạng mới để xếp khối chính xác.",
+    target: "Xóa 15 dòng"
   }
 ];
 
